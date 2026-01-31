@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DatReaderWriter.Extensions", "DatReaderWriter.Extensions\DatReaderWriter.Extensions.csproj", "{A7529852-D377-4B30-AF0D-744F9E899E6D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A7529852-D377-4B30-AF0D-744F9E899E6D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7529852-D377-4B30-AF0D-744F9E899E6D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7529852-D377-4B30-AF0D-744F9E899E6D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7529852-D377-4B30-AF0D-744F9E899E6D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
