@@ -19,6 +19,98 @@ namespace DatReaderWriter.Extensions {
         }
 
         /// <summary>
+        /// Checks if a title exists by its string value.
+        /// </summary>
+        /// <param name="titleString">The title string to check</param>
+        /// <returns>True if it exists, false if not, or an error message</returns>
+        public Result<bool, string> TitleExists(string titleString) {
+            try {
+                var filesResult = GetTitleFiles();
+                if (!filesResult.Success)
+                    return Result<bool, string>.FromError(filesResult.Error ?? "Failed to get title files");
+
+                var (_, stringTable) = filesResult.Value;
+                var targetHash = FindTitleHash(stringTable, titleString);
+
+                return targetHash.HasValue;
+            }
+            catch (Exception ex) {
+                return Result<bool, string>.FromError(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Checks if a title exists by its enum ID.
+        /// </summary>
+        /// <param name="titleId">The enum ID of the title to check</param>
+        /// <returns>True if it exists, false if not, or an error message</returns>
+        public Result<bool, string> TitleExists(int titleId) {
+            try {
+                var filesResult = GetTitleFiles();
+                if (!filesResult.Success)
+                    return Result<bool, string>.FromError(filesResult.Error ?? "Failed to get title files");
+
+                var (enumMapper, _) = filesResult.Value;
+                return enumMapper.IdToStringMap.ContainsKey((uint)titleId);
+            }
+            catch (Exception ex) {
+                return Result<bool, string>.FromError(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Gets the title string for a specific enum ID.
+        /// </summary>
+        /// <param name="titleId">The enum ID of the title</param>
+        /// <returns>The title string, or an error message</returns>
+        public Result<string, string> GetTitle(int titleId) {
+            try {
+                var filesResult = GetTitleFiles();
+                if (!filesResult.Success)
+                    return Result<string, string>.FromError(filesResult.Error ?? "Failed to get title files");
+
+                var (enumMapper, stringTable) = filesResult.Value;
+
+                if (!enumMapper.IdToStringMap.TryGetValue((uint)titleId, out var enumId))
+                    return Result<string, string>.FromError("Title ID does not exist.");
+
+                var enumHash = enumId.ToString().ComputeHash();
+
+                if (!stringTable.Strings.TryGetValue(enumHash, out var stringData) || stringData.Strings.Count == 0)
+                    return Result<string, string>.FromError("Corresponding string table entry not found.");
+
+                return Result<string, string>.FromSuccess(stringData.Strings[0].ToString());
+            }
+            catch (Exception ex) {
+                return Result<string, string>.FromError(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Gets the enum ID for a specific title string.
+        /// </summary>
+        /// <param name="titleName">The title string to find</param>
+        /// <returns>The enum ID of the title, or an error message</returns>
+        public Result<int, string> GetTitle(string titleName) {
+            try {
+                var filesResult = GetTitleFiles();
+                if (!filesResult.Success)
+                    return Result<int, string>.FromError(filesResult.Error ?? "Failed to get title files");
+
+                var (enumMapper, stringTable) = filesResult.Value;
+                var targetId = FindTitleId(enumMapper, stringTable, titleName);
+
+                if (!targetId.HasValue)
+                    return Result<int, string>.FromError("Title not found.");
+
+                return (int)targetId.Value;
+            }
+            catch (Exception ex) {
+                return Result<int, string>.FromError(ex.Message);
+            }
+        }
+
+        /// <summary>
         /// Adds a new title to the DAT files. The enum ID is auto-generated based on the title string.
         /// </summary>
         /// <param name="titleString">The title string (e.g. "My New Title")</param>
@@ -195,29 +287,18 @@ namespace DatReaderWriter.Extensions {
 
                 var (enumMapper, stringTable) = filesResult.Value;
 
-                // Find the enum hash that corresponds to the existing title
-                var targetHash = FindTitleHash(stringTable, existingTitle);
-
-                if (!targetHash.HasValue)
-                    return Result<bool, string>.FromError("Existing title not found.");
-
                 // Find the corresponding enum ID in the enum mapper
-                uint? targetEnumId = null;
-
-                foreach (var enumKvp in enumMapper.IdToStringMap) {
-                    var enumStr = enumKvp.Value.ToString();
-                    if (enumStr.ComputeHash() == targetHash) {
-                        targetEnumId = enumKvp.Key;
-                        break;
-                    }
-                }
+                var targetEnumId = FindTitleId(enumMapper, stringTable, existingTitle);
 
                 if (!targetEnumId.HasValue)
-                    return Result<bool, string>.FromError("Corresponding enum entry not found.");
+                    return Result<bool, string>.FromError("Existing title not found.");
+
+                var enumId = enumMapper.IdToStringMap[targetEnumId.Value];
+                var enumHash = enumId.ToString().ComputeHash();
 
                 // Remove the entries from both the enum mapper and string table
                 enumMapper.IdToStringMap.Remove(targetEnumId.Value);
-                stringTable.Strings.Remove(targetHash.Value);
+                stringTable.Strings.Remove(enumHash);
 
                 // Save the changes
                 return SaveTitleFiles(enumMapper, stringTable);
@@ -269,6 +350,24 @@ namespace DatReaderWriter.Extensions {
             foreach (var kvp in stringTable.Strings) {
                 if (kvp.Value.Strings.Contains(title)) {
                     return kvp.Key;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Helper to find the enum ID for a specific title string.
+        /// </summary>
+        private uint? FindTitleId(EnumMapper enumMapper, StringTable stringTable, string titleName) {
+            var targetHash = FindTitleHash(stringTable, titleName);
+            if (!targetHash.HasValue)
+                return null;
+
+            foreach (var enumKvp in enumMapper.IdToStringMap) {
+                var enumStr = enumKvp.Value.ToString();
+                if (enumStr.ComputeHash() == targetHash.Value) {
+                    return enumKvp.Key;
                 }
             }
 

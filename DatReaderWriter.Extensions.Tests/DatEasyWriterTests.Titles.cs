@@ -1,9 +1,5 @@
-using DatReaderWriter;
 using DatReaderWriter.DBObjs;
-using DatReaderWriter.Enums;
 using DatReaderWriter.Extensions.Tests.Helpers;
-using DatReaderWriter.Options;
-using DatReaderWriter.Types;
 
 namespace DatReaderWriter.Extensions.Tests;
 
@@ -50,6 +46,70 @@ public class DatEasyWriterTitlesTests {
 
         var removeResult = writer.RemoveTitle("Title To Remove");
         Assert.IsTrue(removeResult.Success, removeResult.Error ?? "");
+    }
+
+    [TestMethod]
+    public void CanCheckTitleExists() {
+        using var tempDat = new TempDatDirectory();
+        using var writer = new DatEasyWriter(tempDat.DirectoryPath);
+
+        SetupTitlePrerequisites(writer);
+
+        var titleName = "Existing Title";
+        var addResult = writer.AddTitle(titleName);
+        Assert.IsTrue(addResult.Success, addResult.Error ?? "");
+        var titleId = addResult.Value;
+
+        // Check if existing title exists by name
+        var existsByName = writer.TitleExists(titleName);
+        Assert.IsTrue(existsByName.Success, existsByName.Error ?? "");
+        Assert.IsTrue(existsByName.Value);
+
+        // Check if existing title exists by id
+        var existsById = writer.TitleExists(titleId);
+        Assert.IsTrue(existsById.Success, existsById.Error ?? "");
+        Assert.IsTrue(existsById.Value);
+
+        // Check if non-existing title exists by name
+        var notExistsByName = writer.TitleExists("Non-existing Title");
+        Assert.IsTrue(notExistsByName.Success, notExistsByName.Error ?? "");
+        Assert.IsFalse(notExistsByName.Value);
+
+        // Check if non-existing title exists by id
+        var notExistsById = writer.TitleExists(titleId + 1);
+        Assert.IsTrue(notExistsById.Success, notExistsById.Error ?? "");
+        Assert.IsFalse(notExistsById.Value);
+    }
+
+    [TestMethod]
+    public void CanGetTitle() {
+        using var tempDat = new TempDatDirectory();
+        using var writer = new DatEasyWriter(tempDat.DirectoryPath);
+
+        SetupTitlePrerequisites(writer);
+
+        var titleName = "Lookup Title";
+        var addResult = writer.AddTitle(titleName);
+        Assert.IsTrue(addResult.Success, addResult.Error ?? "");
+        var titleId = addResult.Value;
+
+        // Get title name by ID
+        var getNameResult = writer.GetTitle(titleId);
+        Assert.IsTrue(getNameResult.Success, getNameResult.Error ?? "");
+        Assert.AreEqual(titleName, getNameResult.Value);
+
+        // Get title ID by name
+        var getIdResult = writer.GetTitle(titleName);
+        Assert.IsTrue(getIdResult.Success, getIdResult.Error ?? "");
+        Assert.AreEqual(titleId, getIdResult.Value);
+
+        // Get non-existing title by ID
+        var getNonExistingName = writer.GetTitle(titleId + 1);
+        Assert.IsFalse(getNonExistingName.Success);
+
+        // Get non-existing title by name
+        var getNonExistingId = writer.GetTitle("Non-existing Title");
+        Assert.IsFalse(getNonExistingId.Success);
     }
 
     /// <summary>

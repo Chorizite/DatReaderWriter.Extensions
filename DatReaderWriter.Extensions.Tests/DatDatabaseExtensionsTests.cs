@@ -1,9 +1,6 @@
-using DatReaderWriter.Enums;
 using DatReaderWriter.Extensions.Tests.Helpers;
 using DatReaderWriter.Options;
 using DatReaderWriter.DBObjs;
-using DatReaderWriter.Lib.IO;
-using System.IO.Compression;
 
 
 namespace DatReaderWriter.Extensions.Tests;
