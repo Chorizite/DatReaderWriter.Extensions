@@ -1,4 +1,4 @@
-namespace DatReaderWriter.Extensions {
+namespace DatReaderWriter.Extensions.DBObjs {
     /// <summary>
     /// Mappings for StringTable file entries
     /// </summary>
