@@ -1,213 +1,121 @@
-# DatReaderWriter
+# DatReaderWriter.Extensions
 
-DatReaderWriter is an open-source library for reading and writing .dat files used by the game Asheron's Call. This tool allows players and developers to access and modify game data files for various purposes, such as creating mods or analyzing game content.
+DatReaderWriter.Extensions
 
 ## Table of Contents
 
 - [Features](#features)
 - [Installation](#installation)
-- [Core Concepts](#core-concepts)
 - [Basic Usage](#basic-usage)
-	- [Getting Started](#getting-started)
-    - [Update spell names and descriptions](#update-spell-names-and-descriptions)
-    - [Rewrite all MotionTables to be 100x speed](#rewrite-all-motiontables-to-be-100x-speed)
-- [Known Issues](#known-issues)
 - [Contributing](#contributing)
-- [Thanks](#thanks)
 - [License](#license)
 
 ## Features
-
-- **Read/Write Support**: Full support for reading and writing AC end-of-retail .dat files (`client_portal.dat`, `client_cell_1.dat`, `client_local_English.dat`, `client_highres.dat`).
-- **Data Structures**: Full BTree seeking, insertion, removal, and range queries.
-- **Caching**: Built-in caching options (`OnDemand`, `None`, etc.) to optimize performance.
-- **Async API**: Full async support for IO operations.
-- **Cross-Platform**: Targets `net8.0`, `netstandard2.0`, and `net48`.
+- Targets `net8.0`
 
 ## Installation
 
-Install the `Chorizite.DatReaderWriter` package from NuGet:
+Install the `Chorizite.DatReaderWriter.Extensions` package from NuGet:
 
 ```bash
-dotnet add package Chorizite.DatReaderWriter
+dotnet add package Chorizite.DatReaderWriter.Extensions
 ```
 
-## Core Concepts
+## DatEasyWriter
 
-### DatCollection
-The `DatCollection` class is the main entry point if you want to work with the standard set of AC dat files. It manages `Portal`, `Cell`, `Local`, and `HighRes` databases together, allowing for cross-reference lookups.
+### Initializing DatEasyWriter
 
-## Basic Usage
+You can initialize `DatEasyWriter` pointing to a directory containing your portal/cell/local.dat files, or use an existing `DatCollection`.
 
-### Getting Started
-
-```cs
-using DatReaderWriter;
-using DatReaderWriter.Enums;
+```csharp
+using DatReaderWriter.Extensions;
 using DatReaderWriter.Options;
-using DatReaderWriter.DBObjs;
 
-// Open a set of dat file for reading. This will open all the eor dat files as a single collection.
-using var dats = new DatCollection(@"C:\Turbine\Asheron's Call\", DatAccessType.Read);
+// From directory
+using var writer = new DatEasyWriter("C:\\Turbine\\Asheron's Call");
 
-// Read a file explicitly from the Portal database
-// We use the specific database (Portal) here for clarity and reliability
-Region? region = dats.Portal.Get<Region>(0x13000000u);
-
-// this works as well, directly from the collection
-region = dats.Get<Region>(0x13000000u);
-
-if (region != null) {
-    Console.WriteLine($"Region Name: {region.RegionName}");
-}
-
-// Check iteration of portal dat
-Console.WriteLine($"Portal Iteration: {dats.Portal.Iteration.CurrentIteration}");
-
-// Determine type from a file id (using the specific database)
-var type = dats.Portal.TypeFromId(0x13000000u);
-// Returns DBObjType.Region
-
-// Some types will include QualifiedDataIds<TDBObj> that reference other files
-// You can call QualifiedDataId.Get(datCollection) to get the actual file object
-if (!dat.TryGet<GfxObj>(0x010005E8, out var gfxObj)) {
-    throw new Exception($"Failed to read GfxObj: 0x010005E8");
-}
-var surface = gfxObj.Surfaces.First().Get(dat);
+// With options (e.g. auto-increment iterations)
+var options = new DatEasyWriterOptions { IncreaseIterations = true };
+using var writerWithOptions = new DatEasyWriter("C:\\Turbine\\Asheron's Call", options);
 ```
 
-### Update spell names and descriptions
+### Managing Titles
 
-```cs
-var dats = new DatCollection(@"C:\Turbine\Asheron's Call\", DatAccessType.ReadWrite);
+`DatEasyWriter` provides high-level helpers for managing character titles (adding, updating, removing). These methods handle the underlying `EnumMapper` and `StringTable` updates for you.
 
-// Access the SpellTable directly via the property on PortalDatabase
-var spellTable = dats.SpellTable ?? throw new Exception("Failed to read spell table");
-
-// Update spell name / description
-// (Changes are in memory until validly written back)
-if (spellTable.Spells.ContainsKey(1)) {
-    spellTable.Spells[1].Name = "Strength Other I (updated)";
-    spellTable.Spells[1].Description = "Increases the target's Strength by 10 points. (updated)";
-
-    // Write the updated spell table back to the dat
-    if (!dats.TryWriteFile(spellTable)) {
-        throw new Exception("Failed to write spell table");
-    }
+```csharp
+// Add a new title (Enum ID is auto-generated)
+var newTitleIdResult = writer.AddTitle("My Legendary Title");
+if (newTitleIdResult.Success) {
+    Console.WriteLine($"Added title with ID: {newTitleIdResult.Value}");
 }
-dats.Dispose();
+
+// Add a title with a specific Enum ID
+writer.AddTitle("Another Title", "ID_CharacterTitle_AnotherTitle");
+
+// Update a title by ID
+writer.UpdateTitle(newTitleIdResult.Value, "My Updated Legendary Title");
+
+// Update a title by string match
+writer.UpdateTitle("My Updated Legendary Title", "My Final Title");
+
+// Remove a title by ID
+writer.RemoveTitle(newTitleIdResult.Value);
+
+// Remove a title by string
+writer.RemoveTitle("My Final Title");
 ```
 
-### Rewrite all MotionTables to be 100x speed
+### Generic Database Operations
 
-```cs
-var dats = new DatCollection(@"C:\Turbine\Asheron's Call\", DatAccessType.ReadWrite);
+You can easily get and save `DBObj` files using the generic helpers.
 
-// Get all MotionTable IDs
-// (This scans the database for files matching the MotionTable type ID range)
-var motionTableIds = dats.GetAllIdsOfType<MotionTable>();
-
-foreach (var id in motionTableIds) {
-    // Read the file
-    if (portalDat.TryGet<MotionTable>(id, out var mTable)) {
-        // Update framerates in cycles
-        foreach (var cycle in mTable.Cycles.Values) {
-            foreach (var anim in cycle.Anims) {
-                anim.Framerate *= 100f;
-            }
-        }
-        
-        // Update framerates in modifiers
-        foreach (var modifier in mTable.Modifiers.Values) {
-            foreach (var anim in modifier.Anims) {
-                anim.Framerate *= 100f;
-            }
-        }
-
-        // Write the updated MotionTable back
-        dats.TryWriteFile(mTable);
-    }
+```csharp
+// Get a file (e.g. a LandBlock 0xFFFF0000)
+var result = writer.Get<LandBlock>(0xFFFF0000);
+if (result.Success) {
+    var landBlock = result.Value;
+    // Modify landBlock...
+    
+    // Save it back. If IncreaseIterations is true, the iteration count will update.
+    writer.Save(landBlock);
 }
 ```
 
-### Add a new title
-```cs
-static void Main(string[] args)
-{
-    // new title info
-    var enumId = "ID_CharacterTitle_MyNewTitle";
-    var titleString = "My New Title";
-    
-    // open the dat collection in write mode
-    var dats = new DatCollection(@"C:\Turbine\Asheron's Call\", DatAccessType.ReadWrite);
 
-    // load the relevant string table and enum mapper
-    if (!dats.TryGet<StringTable>(0x2300000E, out var stringTableTitles))
-    {
-        throw new Exception($"Failed to get titles StringTable 0x2300000E");
-    }
+### Accessing Mappers and String Tables
 
-    if (!dats.TryGet<EnumMapper>(0x22000041, out var enumTitles))
-    {
-        throw new  Exception($"Failed to get titles enum mapper 0x22000041");
-    }
-    
-    // check if the enum already exists
-    if (enumTitles.IdToStringMap.ContainsValue(enumId)) 
-    {
-        var existingId = enumTitles.IdToStringMap.First(kv => kv.Value == enumId).Key;
-        Console.WriteLine($"Enum ID '{enumId}' already exists with key {existingId}.");
-        return;
-    }
-    
-    // first we add a new enum mapper for the new title, at the next available ID
-    var newEnumId = enumTitles.IdToStringMap.Keys.Max() + 1;
-    enumTitles.IdToStringMap[newEnumId] = enumId;
-    
-    // now we compute the hash based on the enum string, and add it to the string table
-    var newEnumHash = ComputeHash(enumId);
-    stringTableTitles.StringTableData[newEnumHash] = new StringTableData()
-    {
-        Strings = [titleString]
-    };
-    
-    // save the changes back to the dats (no iteration increase, just overwrite)
-    if (!dats.Portal.TryWriteFile(enumTitles) || !dats.Local.TryWriteFile(stringTableTitles))
-    {
-        Console.WriteLine("Failed to write updates back to dat.");
-        return;
-    }
-    
-    dats.Dispose();
-    
-    Console.WriteLine($"Added new title enum {newEnumId} with hash {newEnumHash:X8} and string '{titleString}'");
-}
+- **`DatEasyWriter.GetEnumMapper(EnumMapperType)`**: Helper to fetch a specific EnumMapper.
+- **`DatEasyWriter.GetStringTable(StringTableType)`**: Helper to fetch a specific StringTable.
 
-public static uint ComputeHash(string strToHash)
-{
-    long result = 0;
+## Extensions
 
-    if (strToHash.Length > 0)
-    {
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-        byte[] str = Encoding.GetEncoding(1252).GetBytes(strToHash);
+### RenderSurface Extensions
 
-        foreach (sbyte c in str)                
-        {
-            result = c + (result << 4);
+Extensions for `RenderSurface` (textures) to easily replace or export image data.
 
-            if ((result & 0xF0000000) != 0)
-                result = (result ^ ((result & 0xF0000000) >> 24)) & 0x0FFFFFFF;
-        }
-    }
+```csharp
+using DatReaderWriter.Extensions.DBObjs;
 
-    return (uint)result;
-}
+// Replace a texture with a PNG/BMP/etc on disk
+var renderSurface = writer.Get<RenderSurface>(0x06001234).Value;
+
+// Replace and optionally resize to match original dimensions
+renderSurface.ReplaceWith("path/to/new_texture.png", shouldResize: true);
+writer.Save(renderSurface);
+
+// Export a texture to a file
+renderSurface.SaveToImageFile("path/to/extracted_texture.png", writer);
+
+// Get raw RGBA bytes
+byte[] rgbaBytes = renderSurface.ToRgba8(writer);
 ```
 
-## Known Issues
-- RenderMaterial files are not yet supported.
-- LayoutDesc files are supported, but the structure will need to be cleaned up in future versions.
+### Other Extensions
+
+- **`DBObj.GetDatFileType()`**: Returns the `DatFileType` (Portal, Cell, Local) a generic `DBObj` belongs to.
+- **`string.ComputeHash()`**: Computes the Asheron's Call specific hash of a string (useful for StringTables).
+
 
 ## Contributing
 
@@ -219,10 +127,6 @@ We welcome contributions from the community! If you would like to contribute to 
 4. Commit your changes (`git commit -am 'Add some feature'`).
 5. Push to the branch (`git push origin feature-branch`).
 6. Create a new Pull Request.
-
-## Thanks
-
-In no particular order, thanks to ACE team, GDLE team, gmriggs, OptimShi, paradox, and Yonneh. Used lots of projects as a reference for different parts.
 
 ## License
 
