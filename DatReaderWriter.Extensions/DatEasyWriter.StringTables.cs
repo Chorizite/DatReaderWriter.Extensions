@@ -1,4 +1,5 @@
 using DatReaderWriter.DBObjs;
+using DatReaderWriter.Extensions.DBObjs;
 using DatReaderWriter.Lib;
 
 namespace DatReaderWriter.Extensions {
