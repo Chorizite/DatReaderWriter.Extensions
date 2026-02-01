@@ -65,7 +65,18 @@ namespace DatReaderWriter.Extensions {
         /// <returns></returns>
         public Result<bool, string> Save<T>(T file) where T : DBObj {
             int? iteration = Options.IncreaseIterations ? (_currentIterations[file.GetDatFileType()] + 1) : null;
-            
+
+            if (file.DBObjType == DBObjType.RenderSurface) {
+                // first look if file is in highres
+                if (Dats.HighRes.Tree.HasFile(file.Id)) {
+                    if (!Dats.HighRes.TryWriteFile(file, iteration)) {
+                        return Result<bool, string>.FromError($"Unable to write file {file.Id} ({file.DBObjType}) to  highres dat.");
+                    }
+
+                    return true;
+                }
+            }
+
             if (!Dats.TryWriteFile(file, iteration)) {
                 return Result<bool, string>.FromError($"Unable to write file {file.Id} ({file.DBObjType}) to dats.");
             }
