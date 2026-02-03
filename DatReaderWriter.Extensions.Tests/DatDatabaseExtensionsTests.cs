@@ -1,6 +1,7 @@
 using DatReaderWriter.Extensions.Tests.Helpers;
 using DatReaderWriter.Options;
 using DatReaderWriter.DBObjs;
+using DatReaderWriter.Lib.IO;
 
 
 namespace DatReaderWriter.Extensions.Tests;
@@ -88,6 +89,70 @@ public class DatDatabaseExtensionsTests {
             // Verify we don't have the even files
             for (uint i = 0x5000000; i < 0x5000010; i += 2) {
                 Assert.IsFalse(newDb.Tree.HasFile(i), $"Should NOT have file {i:X8}");
+            }
+        }
+    }
+
+    [TestMethod]
+    public void Compress_ReducesFileSize_WhenCompressible() {
+        // Arrange
+        using var tempDir = new TempDatDirectory();
+
+        // Open existing dat and add some highly compressible data
+        using (var db = new DatDatabase(o => {
+                   o.FilePath = tempDir.PortalDatPath;
+                   o.AccessType = DatAccessType.ReadWrite;
+               })) {
+            // Write a highly compressible file
+            var file = new RenderSurface() {
+                Id = 0x05000001u, Width = 1024, Height = 1024, SourceData = new byte[1024 * 10]
+            };
+            Array.Fill(file.SourceData, (byte)0xCC);
+            db.TryWriteFile(file);
+        }
+
+        int originalSize;
+        int initialPackedSize;
+        using (var db = new DatDatabase(o => {
+                   o.FilePath = tempDir.PortalDatPath;
+                   o.AccessType = DatAccessType.Read;
+               })) {
+            originalSize = db.Header.FileSize;
+            db.Tree.TryGetFile(0x05000001u, out var entry);
+            initialPackedSize = (int)entry.Size;
+        }
+
+        var compressPath = Path.Combine(tempDir.DirectoryPath, "compress.dat");
+
+        // Act
+        int bytesFreed;
+        using (var db = new DatDatabase(o => {
+                   o.FilePath = tempDir.PortalDatPath;
+                   o.AccessType = DatAccessType.Read;
+               })) {
+            bytesFreed = db.Compress(compressPath);
+        }
+
+        // Assert
+        Assert.IsTrue(File.Exists(compressPath));
+        var newSize = new FileInfo(compressPath).Length;
+        Assert.IsTrue(newSize < originalSize, $"New size {newSize} should be smaller than original {originalSize}");
+        Assert.AreEqual(originalSize - (int)newSize, bytesFreed);
+
+        // Read new dat to verify content
+        using (var newDb = new DatDatabase(o => {
+                   o.FilePath = compressPath;
+                   o.AccessType = DatAccessType.Read;
+               })) {
+            Assert.IsTrue(newDb.Tree.TryGetFile(0x05000001u, out var fileEntry), "Should have compressed file");
+            Assert.AreEqual(1u, fileEntry.Flags & 1u, "Compression flag should be set");
+
+            // Note: Since DatDatabase doesn't support reading compressed data yet, 
+            // we'll just check the raw bytes start with the uncompressed size
+            if (newDb.TryGetFileBytes(0x05000001u, out var compressedBytes)) {
+                var reader = new DatBinReader(compressedBytes);
+                var uncompressedSize = reader.ReadUInt32();
+                Assert.AreEqual((uint)initialPackedSize, uncompressedSize, "Uncompressed size header should match");
             }
         }
     }

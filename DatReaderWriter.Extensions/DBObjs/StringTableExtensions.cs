@@ -1,3 +1,4 @@
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 namespace DatReaderWriter.Extensions.DBObjs {
     /// <summary>
     /// Mappings for StringTable file entries
@@ -18,9 +19,5 @@ namespace DatReaderWriter.Extensions.DBObjs {
         UI_Pregame = 0x23000002,
         Preference = 0x23000003,
         UI_Options = 0x23000004,
-    }
-
-    public class StringTableExtensions {
-        
     }
 }
