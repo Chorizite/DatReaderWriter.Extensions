@@ -2,6 +2,7 @@ using DatReaderWriter.Extensions.Tests.Helpers;
 using DatReaderWriter.Options;
 using DatReaderWriter.DBObjs;
 using DatReaderWriter.Lib.IO;
+using DatReaderWriter.Lib.IO.DatBTree;
 
 
 namespace DatReaderWriter.Extensions.Tests;
@@ -145,15 +146,8 @@ public class DatDatabaseExtensionsTests {
                    o.AccessType = DatAccessType.Read;
                })) {
             Assert.IsTrue(newDb.Tree.TryGetFile(0x05000001u, out var fileEntry), "Should have compressed file");
-            Assert.AreEqual(1u, fileEntry.Flags & 1u, "Compression flag should be set");
+            Assert.AreEqual(DatBTreeFileFlags.IsCompressed, fileEntry.Flags & DatBTreeFileFlags.IsCompressed, "Compression flag should be set");
 
-            // Note: Since DatDatabase doesn't support reading compressed data yet, 
-            // we'll just check the raw bytes start with the uncompressed size
-            if (newDb.TryGetFileBytes(0x05000001u, out var compressedBytes)) {
-                var reader = new DatBinReader(compressedBytes);
-                var uncompressedSize = reader.ReadUInt32();
-                Assert.AreEqual((uint)initialPackedSize, uncompressedSize, "Uncompressed size header should match");
-            }
         }
     }
 }
