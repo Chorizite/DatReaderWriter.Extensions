@@ -1,3 +1,4 @@
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 namespace DatReaderWriter.Extensions.DBObjs {
     /// <summary>
     /// Mappings for EnumMapper file entries. These come from EoR dats 0x25000001 EnumIDMap

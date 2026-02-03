@@ -62,7 +62,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Chorizite.DatReaderWriter" Version="2.0.0" />
+        <PackageReference Include="Chorizite.DatReaderWriter" Version="2.1.0-cleanup-warnings.1" />
         <PackageReference Include="GitVersion.MsBuild" Version="6.5.1">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; buildtransitive</IncludeAssets>

@@ -13,6 +13,8 @@ Extensions for DatReaderWriter that provide high-level helpers for working with 
   - [Accessing Mappers and String Tables](#accessing-mappers-and-string-tables)
 - [DatDatabase Extensions](#datdatabase-extensions)
   - [Defragment](#defragment)
+  - [Compress](#compress)
+  - [Cloning and Header Operations](#cloning-and-header-operations)
 - [DBObj Extensions](#dbobj-extensions)
   - [RenderSurface Extensions](#rendersurface-extensions)
   - [Other Extensions](#other-extensions)
@@ -169,6 +171,34 @@ Console.WriteLine($"Freed {bytesFreed} bytes");
 db.Defragment("portal_defragmented.dat", progress => {
     Console.WriteLine($"Progress: {progress * 100:F1}%");
 });
+```
+
+### Compress
+
+Compresses all files in the dat database and writes them to a new file. This is similar to defragmentation but also applies ZLib compression to files.
+**Note:** The client must be patched to support reading these compressed files.
+
+```csharp
+// Compress to a new file
+int bytesFreed = db.Compress("portal_compressed.dat");
+Console.WriteLine($"Freed {bytesFreed} bytes");
+
+// With progress callback
+db.Compress("portal_compressed.dat", progress => {
+    Console.WriteLine($"Progress: {progress * 100:F1}%");
+});
+```
+
+### Cloning and Header Operations
+
+Helper methods for creating new dat files or copying headers.
+
+```csharp
+// Create a new empty dat file with the same settings (block size, type, version) as the source
+using var newDb = db.CloneEmpty("new_file.dat");
+
+// Copy the header information (Version, LRU settings, MasterMapId) from one DB to another
+newDb.CopyHeaderFrom(db);
 ```
 
 ## DBObj Extensions
